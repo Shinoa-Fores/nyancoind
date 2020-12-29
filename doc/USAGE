@@ -1,0 +1,13 @@
+To run the included binary (testing only) :
+
+Import my gpg key from the "v/wot/" directory.
+`gpg --import v/wot/shinohai.asc`
+
+Verify the nyancoind binary.
+`gpg --verify bin/nyancoind.shinohai.asc bin/nyancoind`
+
+Assuming a good signature, run nyancoind.
+`LC_ALL=C bin/nyancoind >/dev/null 2>&1 & disown`
+
+Logs can be monitored in the usual way.
+`tail -f ~/.nyancoin/debug.log`
