@@ -1,0 +1,6 @@
+nyancoind needs the following dependencies to build:
+
+openssl-1.0.1g
+db-4.8.30
+boost_1_52_0
+
