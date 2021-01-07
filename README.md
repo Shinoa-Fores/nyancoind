@@ -20,3 +20,9 @@ nyancoind is a stripped-down version of the <a href="https://github.com/Nyancoin
 Source code provided here for easy viewing only. It is recommended to build this using <a href="https://github.com/Shinoa-Fores/esthlos-v">esthlos-v</a>. Join #btcinfo on freenode irc for information on obtaining the latest vpatches.
 
 
+Donations:
+
+NYAN: KNyan7yNFjcRbTjK5HyRQsrdzcVG4jqe1V
+BTC : 1Deqx2fUvz9XkAo8WWfLeFnDLAN9MXpSiB
+
+
