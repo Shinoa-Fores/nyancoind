@@ -1,0 +1,183 @@
+diff -uNr a/src/compat.h b/src/compat.h
+--- a/src/compat.h 0356a989b3f9e736f72185fa66130382a466a92f564bf4f311cc9ef3408e59fff78adc96467c088c884fe7b4d6f133ec30bb145bdfc81b494c152c917133a55b
++++ b/src/compat.h 1eb5428e6a99c1ccf24670821670bdb551cc83c7d4df01a4c8c7d36b7a3e2a96e1d7b002343f2d58f6c9d74790f9e15d47134509e4732b9e9966cb46630af974
+@@ -18,7 +18,7 @@
+ #else
+ #include <sys/types.h>
+ #include <sys/socket.h>
+-#include <sys/fcntl.h>
++#include <fcntl.h>
+ #include <arpa/inet.h>
+ #include <netdb.h>
+ #include <net/if.h>
+diff -uNr a/src/netbase.cpp b/src/netbase.cpp
+--- a/src/netbase.cpp b195f42a36615af39a2d28bd91e45511d5edc77980fc03318bdf9cd739ed9c367e7e57cb7502b28fedd9a760e6725d789f70d0884b2f52a0415a96c76617fbea
++++ b/src/netbase.cpp e4589672bce3e9114f7f28b911adffedd748e230f322f345a10fb8484afdd2369c50f07f805e2cbba609e209cb5af26745cac085a5b477ae6a7192c74e1fb48b
+@@ -8,7 +8,7 @@
+ #include "util.h"
+ 
+ #ifndef WIN32
+-#include <sys/fcntl.h>
++#include <fcntl.h>
+ #endif
+ 
+ #include "strlcpy.h"
+diff -uNr a/src/net.cpp b/src/net.cpp
+--- a/src/net.cpp 6b1a96b1eb02b7b37e343653771746712481e582e8523065bb1f6704178e01ae27fdf9d9a162ca35c76dd5313a5894020ab990a857aa3cd87f26b86a3b74f082
++++ b/src/net.cpp 6ec67ca035e7db3f88cefeae1df7ad6b223bedd0084d40083b1a3e6040565235d20f77176f230535c5be2c6d493c773c6ee56efdb005d81ee3c02eeee06b9b4e
+@@ -291,127 +291,6 @@
+     return vfReachable[net] && !vfLimited[net];
+ }
+ 
+-bool GetMyExternalIP2(const CService& addrConnect, const char* pszGet, const char* pszKeyword, CNetAddr& ipRet)
+-{
+-    SOCKET hSocket;
+-    if (!ConnectSocket(addrConnect, hSocket))
+-        return error("GetMyExternalIP() : connection to %s failed", addrConnect.ToString().c_str());
+-
+-    send(hSocket, pszGet, strlen(pszGet), MSG_NOSIGNAL);
+-
+-    string strLine;
+-    while (RecvLine(hSocket, strLine))
+-    {
+-        if (strLine.empty()) // HTTP response is separated from headers by blank line
+-        {
+-            while (true)
+-            {
+-                if (!RecvLine(hSocket, strLine))
+-                {
+-                    closesocket(hSocket);
+-                    return false;
+-                }
+-                if (pszKeyword == NULL)
+-                    break;
+-                if (strLine.find(pszKeyword) != string::npos)
+-                {
+-                    strLine = strLine.substr(strLine.find(pszKeyword) + strlen(pszKeyword));
+-                    break;
+-                }
+-            }
+-            closesocket(hSocket);
+-            if (strLine.find("<") != string::npos)
+-                strLine = strLine.substr(0, strLine.find("<"));
+-            strLine = strLine.substr(strspn(strLine.c_str(), " \t\n\r"));
+-            while (strLine.size() > 0 && isspace(strLine[strLine.size()-1]))
+-                strLine.resize(strLine.size()-1);
+-            CService addr(strLine,0,true);
+-            printf("GetMyExternalIP() received [%s] %s\n", strLine.c_str(), addr.ToString().c_str());
+-            if (!addr.IsValid() || !addr.IsRoutable())
+-                return false;
+-            ipRet.SetIP(addr);
+-            return true;
+-        }
+-    }
+-    closesocket(hSocket);
+-    return error("GetMyExternalIP() : connection closed");
+-}
+-
+-bool GetMyExternalIP(CNetAddr& ipRet)
+-{
+-    CService addrConnect;
+-    const char* pszGet;
+-    const char* pszKeyword;
+-
+-    for (int nLookup = 0; nLookup <= 1; nLookup++)
+-    for (int nHost = 1; nHost <= 2; nHost++)
+-    {
+-        // We should be phasing out our use of sites like these.  If we need
+-        // replacements, we should ask for volunteers to put this simple
+-        // php file on their webserver that prints the client IP:
+-        //  <?php echo $_SERVER["REMOTE_ADDR"]; ?>
+-        if (nHost == 1)
+-        {
+-            addrConnect = CService("91.198.22.70",80); // checkip.dyndns.org
+-
+-            if (nLookup == 1)
+-            {
+-                CService addrIP("checkip.dyndns.org", 80, true);
+-                if (addrIP.IsValid())
+-                    addrConnect = addrIP;
+-            }
+-
+-            pszGet = "GET / HTTP/1.1\r\n"
+-                     "Host: checkip.dyndns.org\r\n"
+-                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
+-                     "Connection: close\r\n"
+-                     "\r\n";
+-
+-            pszKeyword = "Address:";
+-        }
+-        else if (nHost == 2)
+-        {
+-            addrConnect = CService("74.208.43.192", 80); // www.showmyip.com
+-
+-            if (nLookup == 1)
+-            {
+-                CService addrIP("www.showmyip.com", 80, true);
+-                if (addrIP.IsValid())
+-                    addrConnect = addrIP;
+-            }
+-
+-            pszGet = "GET /simple/ HTTP/1.1\r\n"
+-                     "Host: www.showmyip.com\r\n"
+-                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
+-                     "Connection: close\r\n"
+-                     "\r\n";
+-
+-            pszKeyword = NULL; // Returns just IP address
+-        }
+-
+-        if (GetMyExternalIP2(addrConnect, pszGet, pszKeyword, ipRet))
+-            return true;
+-    }
+-
+-    return false;
+-}
+-
+-void ThreadGetMyExternalIP(void* parg)
+-{
+-    // Make this thread recognisable as the external IP detection thread
+-    RenameThread("bitcoin-ext-ip");
+-
+-    CNetAddr addrLocalHost;
+-    if (GetMyExternalIP(addrLocalHost))
+-    {
+-        printf("GetMyExternalIP() returned %s\n", addrLocalHost.ToStringIP().c_str());
+-        AddLocal(addrLocalHost, LOCAL_HTTP);
+-    }
+-}
+-
+-
+-
+-
+ 
+ void AddressCurrentlyConnected(const CService& addr)
+ {
+@@ -1651,8 +1530,6 @@
+         freeifaddrs(myaddrs);
+     }
+ #endif
+-
+-    CreateThread(ThreadGetMyExternalIP, NULL);
+ }
+ 
+ void StartNode(void* parg)
+diff -uNr a/src/net.h b/src/net.h
+--- a/src/net.h adc73adedf68491508fa151564447afae96365e3c7751112c516021102b8c94855d4062d74ff409b5dfaeca4f5de6accb0cbaabfc9331a1785936001653e2afe
++++ b/src/net.h 849d8be9d8885edbd4f2bee76609e20287450c73e0a3a48fc26c143f3b5e5d83e35ab7c52ad6547140713f1557f67cbfff10994fbae7c242ebecbb553845879f
+@@ -32,7 +32,6 @@
+ 
+ void AddOneShot(std::string strDest);
+ bool RecvLine(SOCKET hSocket, std::string& strLine);
+-bool GetMyExternalIP(CNetAddr& ipRet);
+ void AddressCurrentlyConnected(const CService& addr);
+ CNode* FindNode(const CNetAddr& ip);
+ CNode* FindNode(const CService& ip);
+@@ -49,7 +48,6 @@
+     LOCAL_IF,     // address a local interface listens on
+     LOCAL_BIND,   // address explicit bound to
+     LOCAL_UPNP,   // address reported by UPnP
+-    LOCAL_IRC,    // address reported by IRC (deprecated)
+     LOCAL_HTTP,   // address reported by whatismyip.com and similars
+     LOCAL_MANUAL, // address explicitly specified (-externalip=)
+ 
