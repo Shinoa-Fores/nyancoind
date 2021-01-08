@@ -7,7 +7,7 @@ Verify the nyancoind binary.
 `gpg --verify bin/nyancoind.shinohai.asc bin/nyancoind`
 
 Assuming a good signature, run nyancoind.
-`LC_ALL=C bin/nyancoind >/dev/null 2>&1 & disown`
+`LC_ALL=C bin/nyancoind -externalip=$(curl -sSL4 canhazip.com) >/dev/null 2>&1 & disown`
 
 Logs can be monitored in the usual way.
 `tail -f ~/.nyancoin/debug.log`
